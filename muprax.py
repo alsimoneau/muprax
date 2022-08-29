@@ -55,7 +55,7 @@ def main(points, raster, func, params):
     rst = rasterio.open(raster)
 
     epsg = estimate_utm_epsg(lon.mean(), lat.mean())
-    y, x = transform(4326, epsg)(lat, lon)
+    x, y = transform(4326, epsg)(lon, lat)
 
     if func == "nn":
         arr, T_warp = warp(
@@ -67,16 +67,19 @@ def main(points, raster, func, params):
             rst, epsg, resampling=rasterio.enums.Resampling.average
         )
 
-        yc = params["dist"] // abs(T_warp.e)
-        xc = params["dist"] // abs(T_warp.a)
+        yc = int(params["dist"] // abs(T_warp.e))
+        xc = int(params["dist"] // abs(T_warp.a))
         shape = (2 * yc + 1, 2 * xc + 1)
         Y, X = np.indices(shape, sparse=True)
-        kernel = np.power(X * X + Y * Y, params["exp"] / 2)
+        X -= xc
+        Y -= yc
+        kernel = np.power(X * X + Y * Y, -params["exp"] / 2)
+        kernel[yc, xc] = 0
 
-        arr = scipy.ndimage.convolve(arr, kernel, modemode="constant")
+        arr = scipy.ndimage.convolve(arr, kernel, mode="constant")
 
-    db["Interp"] = arr[rasterio.transform.rowcol(T_warp, y, x)]
-    db.to_csv("out.csv")
+    db["Interp"] = arr[rasterio.transform.rowcol(T_warp, x, y)]
+    db.to_csv("out.csv", index=False)
 
 
 if __name__ == "__main__":

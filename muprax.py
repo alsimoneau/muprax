@@ -83,7 +83,8 @@ def main(points, raster, outfile, func, params):
 
 
 if __name__ == "__main__":
-    with open("muprax.in") as f:
+    input_file = input("Input file name: ")
+    with open(input_file.strip().strip("'").strip('"')) as f:
         p = yaml.safe_load(f)
 
     main(

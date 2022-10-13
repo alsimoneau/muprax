@@ -8,7 +8,6 @@ import rasterio.warp
 import scipy.ndimage
 import yaml
 
-
 def transform(s_crs=4326, t_crs=4326):
     return pyproj.Transformer.from_crs(s_crs, t_crs, always_xy=True).transform
 
@@ -49,10 +48,20 @@ def main(points, raster, outfile, func, params):
     if not arr_equal(db.columns, ["ID", "Latitude", "Longitude"]):
         raise ValueError("Wrong point list format")
 
-    lat = db["Latitude"]
-    lon = db["Longitude"]
+    lat = pd.to_numeric(db["Latitude"], errors="coerce")
+    lon = pd.to_numeric(db["Longitude"], errors="coerce")
+    mask = ~(np.isnan(lon) | np.isnan(lat))
+    lat = lat[mask]
+    lon = lon[mask]
 
     rst = rasterio.open(raster)
+
+    epsg = rst.crs.to_epsg()
+    x, y = transform(4326, epsg)(lon, lat)
+
+    bounds = (x > rst.bounds.left ) & (x<rst.bounds.right) & (y > rst.bounds.bottom) & (y < rst.bounds.top)
+    lat = lat[bounds]
+    lon = lon[bounds]
 
     epsg = estimate_utm_epsg(lon.mean(), lat.mean())
     x, y = transform(4326, epsg)(lon, lat)
@@ -78,12 +87,16 @@ def main(points, raster, outfile, func, params):
 
         arr = scipy.ndimage.convolve(arr, kernel, mode="constant")
 
-    db["Interp"] = arr[rasterio.transform.rowcol(T_warp, x, y)]
-    db.to_csv(outfile, index=False)
+    out = pd.DataFrame()
+    out["ID"] = db["ID"][mask][bounds]
+    out["Latitude"] = lat
+    out["Longitude"] = lon
+    out["Interp"] = arr[rasterio.transform.rowcol(T_warp, x, y)]
+    out.to_csv(outfile, index=False)
 
 
 if __name__ == "__main__":
-    input_file = input("Input file name: ")
+    input_file = "muprax.in"
     with open(input_file.strip().strip("'").strip('"')) as f:
         p = yaml.safe_load(f)
 

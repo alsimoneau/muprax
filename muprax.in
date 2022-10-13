@@ -1,6 +1,6 @@
 points_file: points.csv   # path to the points file. ('ID', 'Latitude', 'Longitude')
 raster_file: Vrad.tiff    # path to the image to interpolate
-outfile: out.csv          # out file name
+out_file: out.csv         # out file name
 mode: nn                  # interpolation mode. 'nn' (Nearest Neighbour) or 'idw' (Inverse Distance Weight)
 params:                   # interpolation parameters. Only for 'idw'
   dist: 150               # maximal distance for 'idw' interpolation in meters

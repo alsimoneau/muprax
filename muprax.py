@@ -44,7 +44,7 @@ def arr_equal(a, b):
     return len(a) == len(b) and np.all(a == b)
 
 
-def main(points, raster, func, params):
+def main(points, raster, outfile, func, params):
     db = pd.read_csv(points)
     if not arr_equal(db.columns, ["ID", "Latitude", "Longitude"]):
         raise ValueError("Wrong point list format")
@@ -79,7 +79,7 @@ def main(points, raster, func, params):
         arr = scipy.ndimage.convolve(arr, kernel, mode="constant")
 
     db["Interp"] = arr[rasterio.transform.rowcol(T_warp, x, y)]
-    db.to_csv("out.csv", index=False)
+    db.to_csv(outfile, index=False)
 
 
 if __name__ == "__main__":
@@ -89,6 +89,7 @@ if __name__ == "__main__":
     main(
         points=p["points_file"],
         raster=p["raster_file"],
+        outfile=p["out_file"],
         func=p["mode"],
         params=p["params"],
     )

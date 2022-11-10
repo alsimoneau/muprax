@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
+import astropy.convolution
 import numpy as np
 import pandas as pd
 import pyproj
 import rasterio
 import rasterio.warp
-import scipy.ndimage
 import yaml
 
 
@@ -44,7 +44,7 @@ def arr_equal(a, b):
     return len(a) == len(b) and np.all(a == b)
 
 
-def main(points, raster, outfile, func, params):
+def main(points, raster, outfile, params):
     db = pd.read_csv(points)
     if not arr_equal(db.columns, ["ID", "Latitude", "Longitude"]):
         raise ValueError("Wrong point list format")
@@ -72,28 +72,24 @@ def main(points, raster, outfile, func, params):
     epsg = estimate_utm_epsg(lon.mean(), lat.mean())
     x, y = transform(4326, epsg)(lon, lat)
 
-    if func == "nn":
-        arr, T_warp = warp(rst, epsg, resampling=rasterio.enums.Resampling.nearest)
+    arr, T_warp = warp(rst, epsg, resampling=rasterio.enums.Resampling.average)
 
-    elif func == "idw":
-        arr, T_warp = warp(rst, epsg, resampling=rasterio.enums.Resampling.average)
+    n = int(np.ceil(params["dist"] / abs(T_warp.a)))
+    Y, X = np.mgrid[-n : n + 1, -n : n + 1]
 
-        yc = int(params["dist"] // abs(T_warp.e))
-        xc = int(params["dist"] // abs(T_warp.a))
-        shape = (2 * yc + 1, 2 * xc + 1)
-        Y, X = np.indices(shape, sparse=True)
-        X -= xc
-        Y -= yc
-        kernel = np.power(X * X + Y * Y, -params["exp"] / 2)
-        kernel[yc, xc] = 0
+    r = np.sqrt(X * X + Y * Y)
+    r[n, n] = params["min_dist"]
+    kernel = np.power(r, -params["exp"])
+    kernel[r * abs(T_warp.a) > params["dist"]] = 0
 
-        arr = scipy.ndimage.convolve(arr, kernel, mode="constant")
+    arr_conv = astropy.convolution.convolve(arr, kernel, fill_value=np.nan)
+    out = arr_conv[rasterio.transform.rowcol(T_warp, x, y)]
 
     out = pd.DataFrame()
     out["ID"] = db["ID"][mask][bounds]
     out["Latitude"] = lat
     out["Longitude"] = lon
-    out["Interp"] = arr[rasterio.transform.rowcol(T_warp, x, y)]
+    out["Interp"] = out
     out.to_csv(outfile, index=False)
 
 
@@ -106,6 +102,5 @@ if __name__ == "__main__":
         points=p["points_file"],
         raster=p["raster_file"],
         outfile=p["out_file"],
-        func=p["mode"],
         params=p["params"],
     )

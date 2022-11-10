@@ -1,6 +1,6 @@
+astropy
 numpy
 pandas
 pyproj
 pyyaml
 rasterio
-scipy

@@ -8,6 +8,7 @@ import rasterio.warp
 import scipy.ndimage
 import yaml
 
+
 def transform(s_crs=4326, t_crs=4326):
     return pyproj.Transformer.from_crs(s_crs, t_crs, always_xy=True).transform
 
@@ -59,7 +60,12 @@ def main(points, raster, outfile, func, params):
     epsg = rst.crs.to_epsg()
     x, y = transform(4326, epsg)(lon, lat)
 
-    bounds = (x > rst.bounds.left ) & (x<rst.bounds.right) & (y > rst.bounds.bottom) & (y < rst.bounds.top)
+    bounds = (
+        (x > rst.bounds.left)
+        & (x < rst.bounds.right)
+        & (y > rst.bounds.bottom)
+        & (y < rst.bounds.top)
+    )
     lat = lat[bounds]
     lon = lon[bounds]
 
@@ -67,14 +73,10 @@ def main(points, raster, outfile, func, params):
     x, y = transform(4326, epsg)(lon, lat)
 
     if func == "nn":
-        arr, T_warp = warp(
-            rst, epsg, resampling=rasterio.enums.Resampling.nearest
-        )
+        arr, T_warp = warp(rst, epsg, resampling=rasterio.enums.Resampling.nearest)
 
     elif func == "idw":
-        arr, T_warp = warp(
-            rst, epsg, resampling=rasterio.enums.Resampling.average
-        )
+        arr, T_warp = warp(rst, epsg, resampling=rasterio.enums.Resampling.average)
 
         yc = int(params["dist"] // abs(T_warp.e))
         xc = int(params["dist"] // abs(T_warp.a))

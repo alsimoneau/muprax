@@ -27,9 +27,11 @@ def warp(src, epsg, resampling):
     T, w, h = rasterio.warp.calculate_default_transform(
         src.crs, crs, src.width, src.height, *src.bounds
     )
+    data = src.read(1)
+    data[data == -9999] = np.nan
     dest = np.zeros((h, w))
     return rasterio.warp.reproject(
-        src.read(1),
+        data,
         dest,
         src_transform=src.transform,
         src_crs=src.crs,

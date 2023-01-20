@@ -28,7 +28,7 @@ def warp(src, epsg, resampling):
         src.crs, crs, src.width, src.height, *src.bounds
     )
     data = src.read(1)
-    data[data == -9999] = np.nan
+    data[data <= -9999] = np.nan
     dest = np.zeros((h, w))
     return rasterio.warp.reproject(
         data,
@@ -85,13 +85,13 @@ def main(points, raster, outfile, params):
     kernel[r * abs(T_warp.a) > params["dist"]] = 0
 
     arr_conv = astropy.convolution.convolve(arr, kernel, fill_value=np.nan)
-    out = arr_conv[rasterio.transform.rowcol(T_warp, x, y)]
+    trans_arr = arr_conv[rasterio.transform.rowcol(T_warp, x, y)]
 
     out = pd.DataFrame()
     out["ID"] = db["ID"][mask][bounds]
     out["Latitude"] = lat
     out["Longitude"] = lon
-    out["Interp"] = out
+    out["Interp"] = trans_arr
     out.to_csv(outfile, index=False)
 
 
